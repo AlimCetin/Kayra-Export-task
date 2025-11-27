@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kayra-export
+    environment:
+      POSTGRES_DB: ProductDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - kayra-export-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kayra-export-network
+
+volumes:
+  kayra-export-postgres-data:
+
+networks:
+  kayra-export-network:
+    driver: bridge
+
