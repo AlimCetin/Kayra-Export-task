@@ -1,0 +1,293 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { useProductOperations } from '@/lib/hooks/useProductOperations';
+import { productApi } from '@/lib/api/client';
+import Header from '@/lib/components/Header';
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  imageUrl?: string;
+}
+
+export default function EditProductPage() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
+  const productId = parseInt(params.id as string);
+  const t = useTranslations('common');
+  const tProducts = useTranslations('products');
+  const { updateProduct, loading, error } = useProductOperations();
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: '',
+    imageUrl: '',
+  });
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [productError, setProductError] = useState<string | null>(null);
+
+  // Fetch product data
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoadingProduct(true);
+        const response = await productApi.get(`/products/${productId}`);
+        const product: Product = response.data;
+        
+        setFormData({
+          name: product.name,
+          description: product.description,
+          price: product.price.toString(),
+          category: product.category,
+          imageUrl: product.imageUrl || '',
+        });
+      } catch (err: any) {
+        console.error('Error fetching product:', err);
+        if (err.response?.status === 401) {
+          alert('Lütfen önce giriş yapın');
+          router.push(`/${locale}/login`);
+        } else {
+          setProductError('Ürün yüklenirken hata oluştu');
+        }
+      } finally {
+        setLoadingProduct(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId, locale, router]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await updateProduct(productId, {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        imageUrl: formData.imageUrl || undefined,
+      });
+      
+      alert(tProducts('updateSuccess'));
+      router.push(`/${locale}/products`);
+    } catch (err: any) {
+      console.error('Error updating product:', err);
+      if (err.response?.status === 401) {
+        alert('Lütfen önce giriş yapın');
+        router.push(`/${locale}/login`);
+      }
+    }
+  };
+
+  if (loadingProduct) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-2xl">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  if (productError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-2xl">{productError}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <Header />
+      
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="relative z-10 p-8 pt-24">
+        <div className="max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Link
+                href={`/${locale}`}
+                className="inline-flex items-center text-white/70 hover:text-white transition-colors group"
+              >
+                <svg className="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                {t('home')}
+              </Link>
+              <span className="text-white/50">•</span>
+              <Link
+                href={`/${locale}/products`}
+                className="inline-flex items-center text-white/70 hover:text-white transition-colors group"
+              >
+                {t('products')}
+              </Link>
+            </div>
+            <h1 className="text-5xl font-extrabold text-white mb-2">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
+                {tProducts('editProduct')}
+              </span>
+            </h1>
+            <p className="text-gray-300 text-lg">{tProducts('editProduct')}</p>
+          </div>
+
+          {/* Form Card */}
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 md:p-10 shadow-2xl">
+            {error && (
+              <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-200 px-6 py-4 rounded-xl mb-6 flex items-start">
+                <svg className="w-6 h-6 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-semibold mb-1">{t('error')}</p>
+                  <p>{error}</p>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="name" className="block text-sm font-semibold text-white mb-3">
+                  {t('name')} <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-5 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder={t('name')}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-semibold text-white mb-3">
+                  {t('description')}
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows={5}
+                  className="w-full px-5 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all resize-none"
+                  placeholder={t('description')}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="category" className="block text-sm font-semibold text-white mb-3">
+                  {t('category')} <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-5 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder={t('category')}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="price" className="block text-sm font-semibold text-white mb-3">
+                  {t('price')} <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 font-semibold">₺</span>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    required
+                    min="0.01"
+                    step="0.01"
+                    className="w-full pl-10 pr-5 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="imageUrl" className="block text-sm font-semibold text-white mb-3">
+                  {tProducts('imageUrl')} ({t('cancel')})
+                </label>
+                <input
+                  type="url"
+                  id="imageUrl"
+                  name="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={handleChange}
+                  className="w-full px-5 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-4 rounded-xl font-semibold hover:from-pink-600 hover:to-purple-600 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-2xl hover:shadow-pink-500/50 flex items-center justify-center"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
+                      {t('loading')}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {t('save')}
+                    </>
+                  )}
+                </button>
+                <Link
+                  href={`/${locale}/products`}
+                  className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/20 transition-all text-center"
+                >
+                  {t('cancel')}
+                </Link>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
